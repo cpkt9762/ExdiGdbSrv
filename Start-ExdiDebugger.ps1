@@ -50,12 +50,12 @@
 [CmdletBinding()]
 param
 (
-    [ValidateSet("QEMU")]
+    [ValidateSet("VMWare")]
     [string]
-    $ExdiTarget = "QEMU",
+    $ExdiTarget = "VMWare",
 
     [string]
-    $HostName = "LocalHost",
+    $HostName = "192.168.50.117",
 
     [Parameter(Mandatory=$true)]
     [Int]
@@ -306,7 +306,7 @@ Edit-ExdiConfigFile -ExdiFilePath "$ExdiConfigFilepath" -ExdiTargetType "$ExdiTa
 [System.Environment]::SetEnvironmentVariable('EXDI_GDBSRV_XML_CONFIG_FILE',"$ExdiConfigFilepath")
 [System.Environment]::SetEnvironmentVariable('EXDI_SYSTEM_REGISTERS_MAP_XML_FILE',"$SystemRegistersFilepath")
 
-$DebuggerArgs = @("-v", "-kx exdi:CLSID={29f9906e-9dbe-4d4b-b0fb-6acf7fb6d014},Kd=Guess,DataBreaks=Exdi")
+$DebuggerArgs = @("-v", "-kx exdi:CLSID={29f9906e-9dbe-4d4b-b0fb-6acf7fb6d014},Kd=NTBaseAddr,DataBreaks=Exdi")
 Write-Verbose "DebuggerPath = $DebuggerPath"
 Start-Process -FilePath "$DebuggerPath" -ArgumentList ($DebuggerArgs + $ExtraDebuggerArgs)
 
