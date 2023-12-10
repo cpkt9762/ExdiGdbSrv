@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // cfgExdiGdbSrvHelper.cpp
 //
@@ -90,7 +90,8 @@ class ConfigExdiGdbServerHelper::ConfigExdiGdbServerHelperImpl
         auto it = m_ExdiGdbServerData.file.registerGroupFiles->find(fileType);
         if (it == m_ExdiGdbServerData.file.registerGroupFiles->end())
         {
-            throw _com_error(E_INVALIDARG);
+            printf("The register group file type %d is not available.\n", fileType);
+            throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
         }
         fileName = it->second;
     }
@@ -616,7 +617,7 @@ ConfigExdiGdbServerHelper & ConfigExdiGdbServerHelper::GetInstanceCfgExdiGdbServ
         pInstance = new (nothrow) ConfigExdiGdbServerHelper(pXmlConfigFile);
         if (pInstance == nullptr)
         {
-            throw _com_error(ERROR_NOT_ENOUGH_MEMORY);
+            throw _COM_ERROR_EXCEPTION_HELPER_(ERROR_NOT_ENOUGH_MEMORY);
         }
     }
     return *pInstance;
@@ -630,7 +631,7 @@ ConfigExdiGdbServerHelper::ConfigExdiGdbServerHelper(_In_opt_ PCWSTR pXmlConfigF
     if (!m_pConfigExdiGdbServerHelperImpl->ReadConfigFile(pXmlConfigFile))
     {
         m_pConfigExdiGdbServerHelperImpl = nullptr;
-        throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
+        throw _COM_ERROR_EXCEPTION_HELPER_(HRESULT_FROM_WIN32(GetLastError()));
     }
 }
 
@@ -823,7 +824,7 @@ void ConfigExdiGdbServerHelper::SetXmlBufferToParse(_In_ PCWSTR pXmlConfigFile)
     m_pConfigExdiGdbServerHelperImpl->SetXmlBufferToParse(pXmlConfigFile);
     if (!m_pConfigExdiGdbServerHelperImpl->ReadConfigFile(nullptr))
     {
-        throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
+        throw _COM_ERROR_EXCEPTION_HELPER_(HRESULT_FROM_WIN32(GetLastError()));
     }
 }
 
@@ -833,7 +834,7 @@ bool ConfigExdiGdbServerHelper::ReadConfigFile(_In_ PCWSTR pXmlConfigFile)
 
     if (!m_pConfigExdiGdbServerHelperImpl->ReadConfigFile(pXmlConfigFile))
     {
-        throw _com_error(HRESULT_FROM_WIN32(GetLastError()));
+        throw _COM_ERROR_EXCEPTION_HELPER_(HRESULT_FROM_WIN32(GetLastError()));
     }
     return true;
 }

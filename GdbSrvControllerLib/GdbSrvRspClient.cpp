@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // GdbSrvRspClient.cpp
 //
@@ -16,7 +16,9 @@
 #include "ExceptionHelpers.h"
 #include "GdbSrvRspclient.h"
 #include <regex>
-
+#include <iostream>
+#include <mutex>
+#include <thread>
 using namespace GdbSrvControllerLib;
 
 //=============================================================================
@@ -330,43 +332,8 @@ int MakeRunLengthEncoding(_In_reads_(remaining) const char * pCommand, _In_ int 
 //  and then it'll dispatch the received characters until the buffer is empty or the 
 //  caller requests reseting the input buffer.
 //
-int ReceiveInternal(_In_ int packetLength, _In_ TcpIpStream * const pStream,
-                    _In_ bool resetBuffer, _Out_ char * pCurrentChar)
-{
-    assert(pStream != nullptr && pCurrentChar != nullptr);
 
-    static unique_ptr<char> pReadInputStream = nullptr;
-    static int readInputStreamCharCounter = 0;
-    static char * pReadInputStreamBuffer = nullptr;
-    static int maximumPacketLength = 0;
-
-    if (resetBuffer || pReadInputStreamBuffer == nullptr)
-    {
-        maximumPacketLength = static_cast<int>(CALC_RSP_PACKET_LENGTH(packetLength));
-        pReadInputStream = unique_ptr <char>(new (nothrow) char[maximumPacketLength]);
-        assert(pReadInputStream != nullptr);
-        readInputStreamCharCounter = 0;
-    }
-
-    if (readInputStreamCharCounter == 0)
-    {
-        pReadInputStreamBuffer = pReadInputStream.get();
-        memset(pReadInputStreamBuffer, 0x00, maximumPacketLength);
-        readInputStreamCharCounter = pStream->Receive(pReadInputStreamBuffer, maximumPacketLength);
-        if (readInputStreamCharCounter == SOCKET_ERROR)
-        {
-            pReadInputStreamBuffer = nullptr;
-        }
-    }
-    if (pReadInputStreamBuffer != nullptr)
-    {
-        readInputStreamCharCounter--;
-        *pCurrentChar = *pReadInputStreamBuffer;
-        pReadInputStreamBuffer++;
-    }
-    return readInputStreamCharCounter;
-}
-
+ 
 //
 //  BuildRspPacket  Builds the RSP packet
 //
@@ -379,31 +346,31 @@ int ReceiveInternal(_In_ int packetLength, _In_ TcpIpStream * const pStream,
 //  If there is no any error then it returns the packet length  
 //  Otherwise the error.
 //
-int BuildRspPacket(_In_ TcpIpStream * const pStream, _Out_ string & outData, _Out_ unsigned int & checkSum)
-{
-    assert(pStream != nullptr);
-
-    int readStatus;
-    char currentChar;
-    checkSum = 0;
-
-    for(;;)
-    {
-        readStatus = ReceiveInternal(0, pStream, false, &currentChar);
-        if (readStatus == SOCKET_ERROR)
-        {
-            break;
-        }
-        if (currentChar == '#')
-        {
-            checkSum %= 256;
-            break;
-        }
-        outData += currentChar;
-        checkSum += currentChar;
-    }    
-    return readStatus;
-}
+//int BuildRspPacket(_In_ TcpIpStream * const pStream, _Out_ string & outData, _Out_ unsigned int & checkSum)
+//{
+//    assert(pStream != nullptr);
+//
+//    int readStatus;
+//    char currentChar;
+//    checkSum = 0;
+//
+//    for(;;)
+//    {
+//        readStatus = ReceiveInternal(0, pStream, false, &currentChar);
+//        if (readStatus == SOCKET_ERROR)
+//        {
+//            break;
+//        }
+//        if (currentChar == '#')
+//        {
+//            checkSum %= 256;
+//            break;
+//        }
+//        outData += currentChar;
+//        checkSum += currentChar;
+//    }    
+//    return readStatus;
+//}
 
 //
 //  IsValidRspPacket    Validates the RSP packet checksum.
@@ -420,47 +387,48 @@ int BuildRspPacket(_In_ TcpIpStream * const pStream, _Out_ string & outData, _Ou
 //  true                If both checksums match.
 //  false               Otherwise.
 //
-bool IsValidRspPacket(_In_ TcpIpStream * const pStream, _In_ unsigned int checkSum, _In_ bool isNoAckModeEnabled, 
-                      _In_ const string & inputRspData, _Out_ string & outRspData)
-{
-    assert(pStream != nullptr);
-    bool isDone = false;
-    unsigned char checkSumL = 0;
-    unsigned char checkSumR = 0;
-
-    //  Verify the checksum
-    int readStatus = ReceiveInternal(0, pStream, false, reinterpret_cast<char *>(&checkSumL));
-    if (readStatus != SOCKET_ERROR)
-    {
-        readStatus = ReceiveInternal(0, pStream, false, reinterpret_cast<char *>(&checkSumR));
-        if (readStatus != SOCKET_ERROR)
-        {
-            checkSumL = ((AciiHexToNumber(checkSumL) << 4) & 0xf0);
-            unsigned int packetCheckSum = (AciiHexToNumber(checkSumR) & 0x0f) | checkSumL;
-            if (checkSum == packetCheckSum)
-            {
-                //  Checksum matched, so try to send an ACK
-                if (!isNoAckModeEnabled)
-                {
-                    pStream->Send("+", 1);
-                }
-                //  Build the output response
-                outRspData.assign(inputRspData);
-                isDone = true;
-
-            }
-            else
-            {
-                if (!isNoAckModeEnabled)
-                {
-                    //  Send the NAK 
-                    pStream->Send("-", 1);
-                }
-            }
-        }
-    }
-    return isDone;
-}
+//bool IsValidRspPacket(_In_ TcpIpStream * const pStream, _In_ unsigned int checkSum, _In_ bool isNoAckModeEnabled, 
+//                      _In_ const string & inputRspData, _Out_ string & outRspData)
+//{
+//    assert(pStream != nullptr);
+//    bool isDone = false;
+//    unsigned char checkSumL = 0;
+//    unsigned char checkSumR = 0;
+//
+//    //  Verify the checksum
+//    int readStatus = ReceiveInternal(0, pStream, false, reinterpret_cast<char *>(&checkSumL));
+//    if (readStatus != SOCKET_ERROR)
+//    {
+//        readStatus = ReceiveInternal(0, pStream, false, reinterpret_cast<char *>(&checkSumR));
+//        if (readStatus != SOCKET_ERROR)
+//        {
+//            checkSumL = ((AciiHexToNumber(checkSumL) << 4) & 0xf0);
+//            unsigned int packetCheckSum = (AciiHexToNumber(checkSumR) & 0x0f) | checkSumL;
+//            if (checkSum == packetCheckSum)
+//            {
+//                //  Checksum matched, so try to send an ACK
+//                if (!isNoAckModeEnabled)
+//                {
+//                    pStream->Send("+", 1);
+//                }
+//                //  Build the output response
+//                outRspData.assign(inputRspData);
+//                isDone = true;
+//
+//            }
+//            else
+//            {
+//                if (!isNoAckModeEnabled)
+//                {
+//                    //  Send the NAK 
+//                    pStream->Send("-", 1);
+//                }
+//            }
+//        }
+//    }
+//    assert(isDone);
+//    return isDone;
+//}
 
 #if 0
 //  CreateSendRspPacketWithRunLengthEncoding    Createa a RSP send packet with run-length encoding.
@@ -524,6 +492,7 @@ inline bool IsReceiveInterrupt(_In_ int readStatus, _In_ bool isRspWaitNeeded,
     bool isInterrupted = false;
 
     userInterrupt = false;
+   // printf("IsReceiveInterrupt %d %d %d\n", readStatus, isRspWaitNeeded, IS_INTERRUPT_EVENT_SET(interruptEvent));
     if (readStatus == SOCKET_ERROR && isRspWaitNeeded)
     {
         isInterrupted = true;                
@@ -549,35 +518,40 @@ inline bool IsReceiveInterrupt(_In_ int readStatus, _In_ bool isRspWaitNeeded,
 //  Return:
 //  The number of received characters. 
 //
-int GdbSrvRspClient<TcpConnectorStream>::WaitForRspPacketStart(_In_ int maxPacketLength, _In_ TcpIpStream * const pStream, 
-                                                               _In_ bool isRspWaitNeeded, _Inout_ bool & IsPollingChannelMode,
-                                                               _In_ bool fResetBuffer)
-{
-    assert(pStream != nullptr && maxPacketLength != 0);
-    char currentChar;
-    int readStatus;
-    bool reset = fResetBuffer;
-    bool userInterrupFlag = false;
-
-    ClearInterruptFlag();
-    //  Wait for the packet start character to arrive.
-    do
-    {
-        readStatus = ReceiveInternal(maxPacketLength, pStream, reset, &currentChar);
-        //  Do we need to exit the receiving sequence?
-        if (IsReceiveInterrupt(readStatus, isRspWaitNeeded, m_interruptEvent.Get(),
-            userInterrupFlag))
-        {
-            IsPollingChannelMode = false;
-            SetInterruptFlag(userInterrupFlag);
-            break;
-        }
-        reset = false;
-    }
-    while (currentChar != '$' && !IsPollingChannelMode);
-
-    return readStatus;
-}
+//int GdbSrvRspClient<TcpConnectorStream>::WaitForRspPacketStart(_In_ int maxPacketLength, _In_ TcpIpStream * const pStream, 
+//                                                               _In_ bool isRspWaitNeeded, _Inout_ bool & IsPollingChannelMode,
+//                                                               _In_ bool fResetBuffer)
+//{ 
+//    assert(pStream != nullptr && maxPacketLength != 0);
+//    char currentChar;
+//    int readStatus;
+//    bool reset = fResetBuffer;
+//    bool userInterrupFlag = false;
+//    //;// Sleep(100);
+//    ClearInterruptFlag();
+//    //  Wait for the packet start character to arrive.
+//    printf(__FUNCTION__"1 \n");
+//    do
+//    {
+//      
+//        readStatus = ReceiveInternal(maxPacketLength, pStream, reset, &currentChar);
+//        //printf(__FUNCTION__"2 \n");
+//        //  Do we need to exit the receiving sequence?
+//        if (IsReceiveInterrupt(readStatus, isRspWaitNeeded, m_interruptEvent.Get(),
+//            userInterrupFlag))
+//        {
+//            IsPollingChannelMode = false;
+//            SetInterruptFlag(userInterrupFlag);
+//            break;
+//        }
+//
+//        reset = false;
+//    }
+//    while (currentChar != '$' && !IsPollingChannelMode);
+//
+//    printf(__FUNCTION__"3 userInterrupFlag:%d\n", userInterrupFlag);
+//    return readStatus;
+//}
 
 //
 //  CreateSendRspPacket     Creates a Rsp request packet.
@@ -658,6 +632,81 @@ inline bool GdbSrvRspClient<TcpConnectorStream>::GetNoAckModeRequired(_In_ const
     }
     return isNoAckMode;
 }
+ 
+
+bool gdb_got_immediate_ack(TcpIpStream* pTcpStream)
+{
+    uint8_t ch[2] = { 0 };
+	//  Try to read the +/- (ACK/NAK) packet
+    auto  ret = pTcpStream->Receive2((PCHAR)&ch[0],1); //Internal(1, false, (PCHAR)&ch[0]);
+	if (ret < 0) {
+		/* no response, continue anyway */
+		return true;
+	}
+	/*http://c.gongkong.com/PhoneVersion/PaperDetail?paperId=45850
+	""：告诉GDB上次请求命令不支持。
+	E：告诉GDB出错
+	OK：上次请求正确
+	W：系统在exit_status状态下退出。
+	X：系统在signal信号下终止。
+	S：系统在signal信号下停止。
+	O：告诉GDB控制台输出，这也是唯一向GDB发出的命
+	*/
+    switch (ch[0]) {
+        case '+':
+		        /* received correctly, continue */
+        {
+            //printf("GDB:: received correctly, continue +\n");
+        }
+		        return true;
+        case '-':
+        /* received incorrectly, try again */
+        {
+           // printf("GDB:: received incorrectly, try again -\n");
+        }
+		        return false;
+        case 'E':
+        /* error, continue */
+        {
+            //printf("GDB:: error, continue E\n");
+        }
+		        return false;
+        case 'O':
+        /* console output, continue */
+            //printf("GDB:: console output, continue O\n");
+            return false;
+        case 'W':
+        /* process exited, continue */
+           // printf("GDB:: process exited, continue W\n");
+            return false;
+        case 'X':
+        /* process terminated, continue */
+            //printf("GDB:: process terminated, continue X\n");
+            return false;
+        case 'S':
+        /* process stopped, continue */
+           // printf("GDB::  process stopped, continue S\n");
+            return false;
+        case '\0':
+        /* no response, continue */
+           // printf("GDB:: no response, continue \n");
+            return false;
+        case  '$':
+/* start of a new packet, try again */
+			//printf("GDB:: start of a new packet, try again $\n");
+               //  pTcpStream->IncInputStreamCharCounter();
+                 return false;
+        default:
+            /* anything else, including '-' then try again */
+           // printf("GDB:: gdb_got_immediate_ack default %s\n", ch);
+		return false;
+	}
+	
+     
+	
+	/* anything else, including '-' then try again */
+	return false;
+}
 
 //=============================================================================
 // Public function definitions
@@ -685,7 +734,7 @@ inline bool GdbSrvRspClient<TcpConnectorStream>::GetNoAckModeRequired(_In_ const
 bool GdbSrvRspClient<TcpConnectorStream>::SendRspPacket(_In_ const string & command, _In_ unsigned activeCore)
 {
     assert(m_pConnector != nullptr);
-
+    assert(0);
     try
     {
         scoped_lock packetGuard(m_gdbSrvRspLock);
@@ -697,20 +746,26 @@ bool GdbSrvRspClient<TcpConnectorStream>::SendRspPacket(_In_ const string & comm
         //  Does we require ACK?
         bool isNoAckMode = GetNoAckModeRequired(command);
 
-        TcpIpStream * pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
+        TcpIpStream* pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
         assert(pTcpStream != nullptr);
-
-        char ackCharacter[1] = {0};
+        printf("SendRspPacket isNoAckMode:%d %s\n", isNoAckMode, packetToSend.c_str());
+        char ackCharacter[1] = { 0 };
         int sendResult = 0;
         int retryCounter = 0;
+        int index = 0;
         bool isSendPacket = true;
+
+      
+
         do
         {
             //  Send it over the Link layer until we receive an ACK from GdbServer
             if (isSendPacket)
             {
+                pTcpStream->Send("+", 0);
                 sendResult = pTcpStream->Send(packetToSend.c_str(), static_cast<int>(packetToSend.length()));
-                if (sendResult == SOCKET_ERROR) 
+                printf("%d %d %d %d  send:%s\n", index, static_cast<int>(packetToSend.length()), sendResult, isSendPacket, packetToSend.c_str());
+                if (sendResult == SOCKET_ERROR)
                 {
                     isDone = false;
                     break;
@@ -720,36 +775,30 @@ bool GdbSrvRspClient<TcpConnectorStream>::SendRspPacket(_In_ const string & comm
             //  Is no ACK packet mode enabled?
             if (isNoAckMode)
             {
+
                 //  We do not need + packet, so exit here
                 break;
             }
-            //  Try to read the +/- (ACK/NAK) packet
-            sendResult = pTcpStream->Receive(ackCharacter, sizeof(ackCharacter)); 
-            if (sendResult == SOCKET_ERROR) 
-            {
-                //  Did we reach the maximum retry attempts?
-                if (IS_MAX_ATTEMPTS(++retryCounter))
-                {
-                    isDone = false;
-                    break;
-                }
-                else
-                {                    
-                    isSendPacket = true;
-                }
-            }
-            //  Is it a start data packet?
-            //  The start packet ($) checking is due to a GdbServer error, so force retrying again as the packet 
-            //  has not been Acked yet.
-            isSendPacket = IS_NAK_OR_START_PACKET(ackCharacter[0]);
+            if (gdb_got_immediate_ack(pTcpStream)) {
 
-            //  Should we check here for the '\03' interrupt request from the GdbServer?
-            //  It's not clear if the GdbServer can send us break request provoked by the target.
-            //  If yes then we should add the break checking (\x03) here and send/read then
-            //  the stop reason package that will continue this break before exiting from this function.
-        }
-        while (IS_SEND_PACKET_DONE(ackCharacter[0], m_interruptEvent.Get()));
-    
+                break;
+            }
+            else
+            {
+                //pTcpStream->Send("+", 1);
+                isSendPacket = true;
+                index++;
+                continue;
+            }
+
+            //  Try to read the +/- (ACK/NAK) packet
+           // pTcpStream->Send("+", 1); 
+
+        } while (IS_SEND_PACKET_DONE(ackCharacter[0], m_interruptEvent.Get()));
+
+       
+
+        printf(__FUNCTION__" isDone:%x\n", isDone);
         return isDone;
     }
     CATCH_AND_RETURN_BOOLEAN
@@ -775,46 +824,465 @@ bool GdbSrvRspClient<TcpConnectorStream>::SendRspPacket(_In_ const string & comm
 //  The function validates the checksum and sends a CK/NAK (+/-) (if the ackmode is enabled).
 //  If we receive a valid packet then it disables polling mode.
 //  
-bool GdbSrvRspClient<TcpConnectorStream>::ReceiveRspPacketEx(_Out_ string & response, _In_ unsigned activeCore, 
-                                                             _In_ bool isRspWaitNeeded, _Inout_ bool & IsPollingChannelMode,
-                                                             _In_ bool fResetBuffer)
-{
-    assert(m_pConnector != nullptr);
-    try
-    {
-        bool isDone = false;
+//bool GdbSrvRspClient<TcpConnectorStream>::ReceiveRspPacketEx(_Out_ string & response, _In_ unsigned activeCore, 
+//                                                             _In_ bool isRspWaitNeeded, _Inout_ bool & IsPollingChannelMode,
+//                                                             _In_ bool fResetBuffer)
+//{
+//    assert(m_pConnector != nullptr); 
+//    try
+//    {
+//        bool isDone = false;
+//
+//        scoped_lock packetGuard(m_gdbSrvRspLock);
+//        auto oldsize= response.size();
+//        //  Verify if we have set the maximum response packet, if so then use
+//        //  this value as the maximum response
+//        int maxPacketLength = GET_FEATURE_VALUE(PACKET_SIZE);
+//        //  Get the current active core tcp stream object.
+//        TcpIpStream * pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
+//        assert(pTcpStream != nullptr);
+//        //  Wait for the first packet character '$' to arrive
+//        //等待第一个数据包字符“$”到达
+//        if (WaitForRspPacketStart(maxPacketLength, pTcpStream, isRspWaitNeeded, IsPollingChannelMode, fResetBuffer) != SOCKET_ERROR)
+//        {
+//            string replyPacket;
+//            replyPacket.reserve(response.length());
+//            unsigned int checkSum = 0;
+//            //  Build the data packet
+//            if (BuildRspPacket(pTcpStream, replyPacket, checkSum) != SOCKET_ERROR)   
+//            {
+//                //  Verify if the RSP checksum is valid, if so, then output the response string
+//                if (IsValidRspPacket(pTcpStream, checkSum, IS_FEATURE_ENABLED(PACKET_QSTART_NO_ACKMODE), 
+//                                     replyPacket, response))
+//                {
+//                    isDone = true;
+//                    //  Disable polling mode
+//                    IsPollingChannelMode = false;
+//                    printf("%d response:%s\n", response.length(),response.c_str());
+//                    assert(replyPacket.length()== response.length());
+//                }
+//           
+//            }
+//
+//        }
+//        if (oldsize > 0)
+//        {
+//
+//            printf(__FUNCTION__" isDone:%x %d %d\n", isDone, oldsize, response.length());
+//            assert(oldsize >= response.length());
+//        }
+//        assert(isDone);
+//        return isDone;
+//    }
+//    CATCH_AND_RETURN_BOOLEAN
+//}
 
-        scoped_lock packetGuard(m_gdbSrvRspLock);
-        //  Verify if we have set the maximum response packet, if so then use
-        //  this value as the maximum response
-        int maxPacketLength = GET_FEATURE_VALUE(PACKET_SIZE);
-        //  Get the current active core tcp stream object.
-        TcpIpStream * pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
-        assert(pTcpStream != nullptr);
-        //  Wait for the first packet character '$' to arrive
-        if (WaitForRspPacketStart(maxPacketLength, pTcpStream, isRspWaitNeeded, IsPollingChannelMode, fResetBuffer) != SOCKET_ERROR)
-        {
-            string replyPacket;
-            replyPacket.reserve(response.length());
-            unsigned int checkSum = 0;
-            //  Build the data packet
-            if (BuildRspPacket(pTcpStream, replyPacket, checkSum) != SOCKET_ERROR)   
-            {
-                //  Verify if the RSP checksum is valid, if so, then output the response string
-                if (IsValidRspPacket(pTcpStream, checkSum, IS_FEATURE_ENABLED(PACKET_QSTART_NO_ACKMODE), 
-                                     replyPacket, response))
-                {
-                    isDone = true;
-                    //  Disable polling mode
-                    IsPollingChannelMode = false;
-                }
-            }
-        }
-        return isDone;
-    }
-    CATCH_AND_RETURN_BOOLEAN
+bool is_ack(char ch)
+{
+	switch (ch) {
+	case '+':
+		/* received correctly, continue */
+	{
+		//printf("GDB:: received correctly, continue +\n");
+	}
+	return true;
+	case '-':
+		/* received incorrectly, try again */
+	{
+		printf("GDB:: received incorrectly, try again -\n");
+	}
+	return false;
+	case 'E':
+		/* error, continue */
+	{
+		printf("GDB:: error, continue E\n");
+	}
+	return false;
+	case 'O':
+		/* console output, continue */
+		printf("GDB:: console output, continue O\n");
+		return false;
+	case 'W':
+		/* process exited, continue */
+		printf("GDB:: process exited, continue W\n");
+		return false;
+	case 'X':
+		/* process terminated, continue */
+		printf("GDB:: process terminated, continue X\n");
+		return false;
+	case 'S':
+		/* process stopped, continue */
+		printf("GDB::  process stopped, continue S\n");
+		return false;
+	case '\0':
+		/* no response, continue */
+		printf("GDB:: no response, continue \n");
+		return false;
+	case  '$':
+		/* start of a new packet, try again */
+		printf("GDB:: start of a new packet, try again $\n");
+		//  pTcpStream->IncInputStreamCharCounter();
+		return false;
+	default:
+		/* anything else, including '-' then try again */
+		//printf("GDB:: gdb_got_immediate_ack default %s\n", ch);
+		return false;
+	}
+
+
 }
 
+int BuildRspPacket(_In_ std::string Packet, int& paketindex, _Out_ string& outData, _Out_ unsigned int& checkSum)
+{
+    int readStatus =0;
+    checkSum = 0;
+
+    for (;;)
+    {
+        auto  currentChar = Packet.at(paketindex++);
+        if (currentChar == '#')
+        {
+            checkSum %= 256;
+            readStatus = 1;
+            break;
+        }
+        outData += currentChar;
+        checkSum += currentChar;
+    }
+    return readStatus;
+}
+bool GdbSrvRspClient<TcpConnectorStream>::ReceiveRspPacketEx(_Out_ string& response, _In_ unsigned activeCore,
+    _In_ bool isRspWaitNeeded, _Inout_ bool& IsPollingChannelMode,
+    _In_ bool fResetBuffer)
+{
+    bool isDone = false;
+    bool userInterrupFlag = false;
+    ClearInterruptFlag();
+
+    //  Wait for the packet start character to arrive.
+    //printf(__FUNCTION__"1 \n");
+
+
+    //  Verify if we have set the maximum response packet, if so then use
+    //  this value as the maximum response
+
+    int maxPacketLength = GET_FEATURE_VALUE(PACKET_SIZE);
+
+     
+ //   if (!isRspWaitNeeded)
+	//{
+	//	printf("isRspWaitNeeded2:%d %d \n", isRspWaitNeeded, userInterrupFlag);
+
+	//	IsPollingChannelMode = false;
+	//	SetInterruptFlag(userInterrupFlag);
+ //       WaitForSingleObject(m_interruptEvent.Get(), -1);
+ //       isRspWaitNeeded = true;
+	//	
+	//	printf("isRspWaitNeeded3:%d %d\n", isRspWaitNeeded, userInterrupFlag);
+ //        
+ //   }
+
+    std::string Packet;
+    Packet.resize(maxPacketLength);
+    auto pPacketData = Packet.data();
+
+    //  Get the current active core tcp stream object.
+    TcpIpStream* pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
+    assert(pTcpStream != nullptr);
+
+
+    auto bytes_read = pTcpStream->Receive2((PCHAR)pPacketData, Packet.size());
+
+    // printf("IS_INTERRUPT_EVENT_SET:%d\n", IS_INTERRUPT_EVENT_SET(m_interruptEvent.Get()));
+
+    //
+
+
+     //  Do we need to exit the receiving sequence?
+    if (IsReceiveInterrupt(bytes_read, isRspWaitNeeded, m_interruptEvent.Get(),
+        userInterrupFlag))
+    {
+        printf("isRspWaitNeeded1:%d %d bytes_read:%d %d %s\n", isRspWaitNeeded, userInterrupFlag, bytes_read, Packet.size(), pPacketData);
+        IsPollingChannelMode = false;
+        SetInterruptFlag(userInterrupFlag);
+        isDone = false; 
+         
+		printf("isRspWaitNeeded2:%d %d bytes_read:%d %d %s\n", isRspWaitNeeded, userInterrupFlag, bytes_read, Packet.size(), pPacketData);
+
+        //return isDone;
+    }
+
+
+    if (bytes_read == -1 && !isRspWaitNeeded && WSAGetLastError() == WSAETIMEDOUT)
+    {
+        printf("WSAETIMEDOUT\n");
+        isDone = false;
+        return isDone;
+    }
+
+    if (0 == bytes_read)
+    {
+        printf("0==bytes_read\n");
+        isDone = false;
+        return isDone;
+    }
+
+    assert('$' == *pPacketData);
+
+    string replyPacket;
+    replyPacket.reserve(response.length());
+    int  paketindex = 0;
+    unsigned int checkSum = 0;
+    if (BuildRspPacket(++pPacketData, paketindex, replyPacket, checkSum))
+    {
+        pPacketData += paketindex;
+        //printf("replyPacket:%s %x %x\n", replyPacket.c_str(), *pPacketData, *(pPacketData + 1));
+
+        unsigned char checkSumL = *pPacketData++;
+        unsigned char checkSumR = *pPacketData++;
+
+        auto isNoAckModeEnabled = IS_FEATURE_ENABLED(PACKET_QSTART_NO_ACKMODE);
+        checkSumL = ((AciiHexToNumber(checkSumL) << 4) & 0xf0);
+        unsigned int packetCheckSum = (AciiHexToNumber(checkSumR) & 0x0f) | checkSumL;
+        //printf("checkSum:%x %x\n", checkSum, packetCheckSum);
+        assert(checkSum == packetCheckSum);
+        if (checkSum == packetCheckSum)
+        {
+            //  Checksum matched, so try to send an ACK
+            if (!isNoAckModeEnabled)
+            {
+                pTcpStream->Send("+", 1);
+            }
+            //  Build the output response
+            response.assign(replyPacket);
+            isDone = true;
+
+        }
+        else
+        {
+            if (!isNoAckModeEnabled)
+            {
+                //  Send the NAK 
+                pTcpStream->Send("-", 1);
+            }
+            assert(0);
+        }
+
+    }
+
+
+   // assert(isDone);
+
+
+    return isDone;
+}
+int GdbSrvRspClient<TcpConnectorStream>::SendPacket(_In_ unsigned activeCore, _In_ LPCSTR pBuffer, _In_ int length, _Out_ string& response, _In_  bool isRspWaitNeeded)
+{
+	//scoped_lock packetGuard(m_gdbSrvRspLock);
+	TcpIpStream* pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
+	assert(pTcpStream != nullptr); 
+
+	char ackCharacter[1] = { 0 };
+	int sendResult = 0; 
+	bool isSendPacket = true;
+    bool isDone = true;    
+	auto  bytes_read = 0;
+    int maxPacketLength = GET_FEATURE_VALUE(PACKET_SIZE);
+
+	do
+	{
+		pTcpStream->Send("", 0);
+		sendResult = pTcpStream->Send(pBuffer, static_cast<int>(length));
+	 	if (sendResult == SOCKET_ERROR)
+		{
+			isDone = false;
+			break;
+		}
+
+		//  Try to read the +/- (ACK/NAK) packet
+		auto  ret = pTcpStream->Receive2((PCHAR)&ackCharacter[0], 1); //Internal(1, false, (PCHAR)&ch[0]);
+		if (ret < 0) {
+			/* no response, continue anyway 	*/
+			printf("no response, continue anyway\n");
+
+			break;
+		}
+
+		if (is_ack(ackCharacter[0]))//&&(!IS_SEND_PACKET_DONE(ackCharacter[0], m_interruptEvent.Get())))
+		{
+			break;
+		}
+		else
+		{
+		
+			std::string Packet;
+			Packet.resize(maxPacketLength);
+			bytes_read = pTcpStream->Receive2((PCHAR)Packet.data(), Packet.size());
+
+		} 
+
+	} while (true);
+
+    if (!isDone) 
+        return sendResult;
+
+	std::string Packet;
+	Packet.resize(maxPacketLength);
+	bytes_read = pTcpStream->Receive2((PCHAR)Packet.data(), Packet.size());
+
+    //if (!isRspWaitNeeded&&'c'== pBuffer[1])
+    //{
+    //    printf("WaitForSingleObject isRspWaitNeeded2:%d  \n", isRspWaitNeeded);
+    //    WaitForSingleObject(m_interruptEvent.Get(), -1);
+    //    printf("WaitForSingleObject isRspWaitNeeded3:%d  \n", isRspWaitNeeded);
+    //   // return sendResult;
+    //}
+	
+
+	if (bytes_read == -1&& WSAGetLastError() == WSAETIMEDOUT)
+	{
+		printf("WSAETIMEDOUT\n");
+		isDone = false;
+		return bytes_read;
+	}
+
+	if (0 > bytes_read)
+	{
+		printf("0>bytes_read %d %d\n", bytes_read, WSAGetLastError());
+		isDone = false;
+		return bytes_read;
+	}
+    auto pPacketData = Packet.data();
+	assert('$' == *pPacketData);
+
+	string replyPacket;
+	replyPacket.reserve(bytes_read);
+	int  paketindex = 0;
+	unsigned int checkSum = 0;
+    if (BuildRspPacket(++pPacketData, paketindex, replyPacket, checkSum))
+    {
+        pPacketData += paketindex;
+        //printf("replyPacket:%s %x %x\n", replyPacket.c_str(), *pPacketData, *(pPacketData + 1));
+
+        unsigned char checkSumL = *pPacketData++;
+        unsigned char checkSumR = *pPacketData++;
+
+        auto isNoAckModeEnabled = IS_FEATURE_ENABLED(PACKET_QSTART_NO_ACKMODE);
+        checkSumL = ((AciiHexToNumber(checkSumL) << 4) & 0xf0);
+        unsigned int packetCheckSum = (AciiHexToNumber(checkSumR) & 0x0f) | checkSumL;
+        //printf("checkSum:%x %x\n", checkSum, packetCheckSum);
+        assert(checkSum == packetCheckSum);
+        if (checkSum == packetCheckSum)
+        {
+            //  Checksum matched, so try to send an ACK
+            if (!isNoAckModeEnabled)
+            {
+                pTcpStream->Send("+", 1);
+            }
+            //  Build the output response
+            response.assign(replyPacket);
+            isDone = true;
+
+        }
+        else
+        {
+            if (!isNoAckModeEnabled)
+            {
+                //  Send the NAK 
+                pTcpStream->Send("-", 1);
+            }
+            assert(0);
+        }
+    }
+    return bytes_read;
+}
+bool GdbSrvRspClient<TcpConnectorStream>::SendRspPacketEx(_In_ const string& command, _In_ unsigned activeCore, _Out_ string& response,
+    _In_ bool isRspWaitNeeded, _Inout_ bool& IsPollingChannelMode,
+    _In_ bool fResetBuffer)
+{
+    scoped_lock packetGuard(m_gdbSrvRspLock);
+    bool isDone = true;
+	bool userInterrupFlag = false;
+	ClearInterruptFlag();
+    //  Create the packet to send
+    string packetToSend = CreateSendRspPacket(command);
+
+    //  Does we require ACK?
+    bool isNoAckMode = GetNoAckModeRequired(command);
+
+    TcpIpStream* pTcpStream = m_pConnector->GetLinkLayerStreamEntry(activeCore);
+    assert(pTcpStream != nullptr);
+
+    auto bytes_read = SendPacket(activeCore, packetToSend.c_str(), static_cast<int>(packetToSend.length()), response, isRspWaitNeeded);
+  
+	//  Do we need to exit the receiving sequence?
+	if (IsReceiveInterrupt(bytes_read, isRspWaitNeeded, m_interruptEvent.Get(),
+		userInterrupFlag))
+	{
+		//printf("isRspWaitNeeded1:%d %d bytes_read:%d %d %s\n", isRspWaitNeeded, userInterrupFlag, bytes_read, Packet.size(), pPacketData);
+		IsPollingChannelMode = false;
+		SetInterruptFlag(userInterrupFlag);
+		isDone = false;
+
+		//printf("isRspWaitNeeded2:%d %d bytes_read:%d %d %s\n", isRspWaitNeeded, userInterrupFlag, bytes_read, Packet.size(), pPacketData);
+
+		 return isDone;
+	}
+	return isDone;
+   // printf("SendRspPacket isNoAckMode:%d %s\n", isNoAckMode, packetToSend.c_str());
+ //   char ackCharacter[1] = { 0 };
+ //   int sendResult = 0;
+ //   int retryCounter = 0;
+ //   int index = 0;
+ //   bool isSendPacket = true;
+
+	//char currentChar = 0;
+	//int readStatus = 0;
+	//bool userInterrupFlag = false; 
+
+	//int maxPacketLength = GET_FEATURE_VALUE(PACKET_SIZE);
+	//
+
+	////printf("maxPacketLength:%d %d\n", maxPacketLength, response.size());
+	//auto  bytes_read = 0;
+ //   do
+ //   {
+
+ //       //pTcpStream->Send("", 0);
+ //       sendResult = pTcpStream->Send(packetToSend.c_str(), static_cast<int>(packetToSend.length()));
+ //       //printf("%d %d %d %d  send:%s\n", index, static_cast<int>(packetToSend.length()), sendResult, isSendPacket, packetToSend.c_str());
+ //       if (sendResult == SOCKET_ERROR)
+ //       {
+ //           isDone = false;
+ //           break;
+ //       }
+ //        
+	//	//  Try to read the +/- (ACK/NAK) packet
+	//	auto  ret = pTcpStream->Receive2((PCHAR)&ackCharacter[0], 1); //Internal(1, false, (PCHAR)&ch[0]);
+	//	if (ret < 0) {
+	//		/* no response, continue anyway 	*/
+ //           printf("no response, continue anyway\n");
+	//	
+ //           break;
+	//	}
+
+ //       if (is_ack(ackCharacter[0]))//&&(!IS_SEND_PACKET_DONE(ackCharacter[0], m_interruptEvent.Get())))
+ //       {
+ //           break; 
+ //       }
+ //       else
+	//	{
+	//		std::string Packet;
+	//		Packet.resize(maxPacketLength);
+	//		auto pPacketData = Packet.data();
+ //           bytes_read = pTcpStream->Receive2((PCHAR)pPacketData, Packet.size()); 
+ //         
+ //       }
+ //        
+ //   } while (true);
+ //      
+ //   return ReceiveRspPacketEx(response, activeCore, isRspWaitNeeded, IsPollingChannelMode, fResetBuffer);
+}
 //
 //  ConfigRspSession    Set the RSP session communication parameters.
 //                      Also, it sets the TCP stream link layer options.
@@ -885,18 +1353,20 @@ bool GdbSrvRspClient<TcpConnectorStream>::ConfigRspSession(_In_ const RSP_CONFIG
 
             int resultRecv = 0;
             if (pConfigData->recvTimeout != 0)
-            {
+			{
+				static auto  recvTimeout = 0;
                 resultRecv = pStream->SetOptions(SOL_SOCKET, SO_RCVTIMEO, 
-                                                 reinterpret_cast<const char *>(&pConfigData->recvTimeout),
-                                                 sizeof(pConfigData->recvTimeout));
+                                                 reinterpret_cast<const char *>(&recvTimeout),
+                                                 sizeof(recvTimeout));
             }
 
             int resultSend = 0;
             if (pConfigData->sendTimeout != 0)
             {
+                static auto sendTimeout = 0;
                 resultSend = pStream->SetOptions(SOL_SOCKET, SO_SNDTIMEO, 
-                                                 reinterpret_cast<const char *>(&pConfigData->sendTimeout),
-                                                 sizeof(pConfigData->sendTimeout));
+                                                 reinterpret_cast<const char *>(&sendTimeout),
+                                                 sizeof(sendTimeout));
             }
             if (resultRecv == SOCKET_ERROR || resultSend == SOCKET_ERROR)
             {
@@ -1246,7 +1716,7 @@ bool GdbSrvRspClient<TcpConnectorStream>::ShutDownRsp()
 //  this packet will be received from the main working command thread.
 //
 bool GdbSrvRspClient<TcpConnectorStream>::SendRspInterruptEx(_In_ bool fResetAllCores, _In_ unsigned activeCore)
-{
+{ 
     assert(m_pConnector != nullptr);
     bool isDone = false;
 
@@ -1257,8 +1727,9 @@ bool GdbSrvRspClient<TcpConnectorStream>::SendRspInterruptEx(_In_ bool fResetAll
         {
             TcpIpStream * pStream = m_pConnector->GetLinkLayerStreamEntry(coreNumber);
             assert(pStream != nullptr);
-
-            int sendResult = pStream->Send(interruptPacket, static_cast<int>(strlen(interruptPacket)));
+           
+            int sendResult = pStream->SendInterrupt(interruptPacket,static_cast<int>(strlen(interruptPacket)));
+            printf("SendRspInterruptEx %d %d %s\n", sendResult, strlen(interruptPacket), interruptPacket);
             if (sendResult != SOCKET_ERROR) 
             {
                 //  Set the interrupt event 
@@ -1316,11 +1787,12 @@ void GdbSrvRspClient<TcpConnectorStream>::HandleRspErrors(_In_ GdbSrvTextType te
 //
 //  Return:
 //  Nothing.
-//
+//放弃任何待处理的响应
 void GdbSrvRspClient<TcpConnectorStream>::DiscardResponse(_In_ unsigned activeCore)
 {
+	assert(0);
     assert(m_pConnector != nullptr);
-
+    
     scoped_lock packetGuard(m_gdbSrvRspLock);
     bool IsPollingChannelMode = true;
     size_t totalNumberOfProcessorCores = m_pConnector->GetNumberOfConnections();
@@ -1332,7 +1804,7 @@ void GdbSrvRspClient<TcpConnectorStream>::DiscardResponse(_In_ unsigned activeCo
             assert(pStream != nullptr);
 
             string result;
-            bool isRecvDone = ReceiveRspPacketEx(result, coreNumber, false, IsPollingChannelMode, true);
+            bool isRecvDone = false;// ReceiveRspPacketEx(result, coreNumber, false, IsPollingChannelMode, true);
             if ((!isRecvDone && IsPollingChannelMode) || result.empty())
             {
                 //  Try to interrupt

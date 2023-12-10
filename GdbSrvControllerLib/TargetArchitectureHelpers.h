@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // TargetArchitectureHelpers.h
 //
@@ -339,7 +339,8 @@ public:
             int tokenValue;
             if (sscanf_s(token, "%x", &tokenValue) != 1)
             {
-                throw _com_error(E_FAIL);
+                printf("Error: Invalid thread id value: %s\n", token);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_FAIL);
             }
             char tokenStr[256] = { 0 };
             sprintf_s(tokenStr, _countof(tokenStr), "%x", tokenValue);
@@ -362,7 +363,8 @@ public:
             int tokenValue;
             if (swscanf_s(token, format, &tokenValue) != 1)
             {
-                throw _com_error(E_FAIL);
+                printf("Error: Invalid access code value: %s\n", token);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_FAIL);
             }
             pTokens->push_back(tokenValue);
             token = wcstok_s(nullptr, delimiters, &next_token);

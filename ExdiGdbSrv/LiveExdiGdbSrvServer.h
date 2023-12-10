@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 //  LiveExdiGdbSrvServer.h  Header for the CLiveExdiGdbSrvServerclass
 //  This file declares the following interfaces:
@@ -282,6 +282,7 @@ public:
     virtual HRESULT STDMETHODCALLTYPE PerformKeepaliveChecks(void);
 
     private:
+        std::map<int, CONTEXT_X86_64> m_cachecontextsMap;
         GdbSrvControllerLib::AsynchronousGdbSrvController * m_pGdbSrvController;
         DWORD m_detectedProcessorFamily;
         CComPtr<IeXdiClientNotifyRunChg3> m_pRunNotificationListener;

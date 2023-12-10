@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // ArgumentHelpers.h
 //
@@ -19,7 +19,7 @@ template <typename T1> void CheckAndZeroOutArgs(_Out_ T1 *pArg1)
     }
     if (pArg1 == nullptr)
     {
-        throw _com_error(E_POINTER);
+        throw _COM_ERROR_EXCEPTION_HELPER_(E_POINTER);
     }
 }
 
@@ -36,7 +36,7 @@ template <typename T1, typename T2> void CheckAndZeroOutArgs(_Out_ T1 *pArg1, _O
 
     if (pArg1 == nullptr || pArg2 == nullptr)
     {
-        throw _com_error(E_POINTER);
+        throw _COM_ERROR_EXCEPTION_HELPER_(E_POINTER);
     }
 }
 
@@ -57,7 +57,7 @@ template <typename T1, typename T2, typename T3> void CheckAndZeroOutArgs(_Out_ 
 
     if (pArg1 == nullptr || pArg2 == nullptr || pArg3 == nullptr)
     {
-        throw _com_error(E_POINTER);
+        throw _COM_ERROR_EXCEPTION_HELPER_(E_POINTER);
     }
 }
 
@@ -85,7 +85,7 @@ template <typename T1, typename T2, typename T3, typename T4> void CheckAndZeroO
 
     if (pArg1 == nullptr || pArg2 == nullptr || pArg3 == nullptr || pArg4 == nullptr)
     {
-        throw _com_error(E_POINTER);
+        throw _COM_ERROR_EXCEPTION_HELPER_(E_POINTER);
     }
 }
 
@@ -118,6 +118,6 @@ template <typename T1, typename T2, typename T3, typename T4, typename T5> void 
 
     if (pArg1 == nullptr || pArg2 == nullptr || pArg3 == nullptr || pArg4 == nullptr || pArg5 == nullptr)
     {
-        throw _com_error(E_POINTER);
+        throw _COM_ERROR_EXCEPTION_HELPER_(E_POINTER);
     }
 }

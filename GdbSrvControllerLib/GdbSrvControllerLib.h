@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // GdbSrvControllerLib.h
 //
@@ -241,6 +241,8 @@ namespace GdbSrvControllerLib
 
         //  Read the target virtual memory.
         SimpleCharBuffer ReadMemory(_In_ AddressType address, _In_ size_t size, _In_ const memoryAccessType memType);
+
+        SimpleCharBuffer ReadMemoryEx(AddressType address, size_t size, const memoryAccessType memType);
 
         //  Read system registers 
         SimpleCharBuffer ReadSystemRegisters(_In_ AddressType address, _In_ size_t maxSize, _In_ const memoryAccessType memType);

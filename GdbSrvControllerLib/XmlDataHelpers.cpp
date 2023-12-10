@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+ï»¿//----------------------------------------------------------------------------
 //
 // XmlDataHelpers.cpp
 //
@@ -133,15 +133,15 @@ typedef struct
 typedef struct
 {
     WCHAR featureName[C_MAX_ATTR_LENGTH];               //  Feature Name: Describes the org. that implements the register target file
-    WCHAR RegisterName[C_MAX_ATTR_LENGTH];              //  Name:The register’s name; it must be unique within the target description.
-    WCHAR RegistBitSize[C_MAX_ATTR_LENGTH];             //  Bitsize: The register’s size, in bits.
+    WCHAR RegisterName[C_MAX_ATTR_LENGTH];              //  Name:The registeræŠ¯ name; it must be unique within the target description.
+    WCHAR RegistBitSize[C_MAX_ATTR_LENGTH];             //  Bitsize: The registeræŠ¯ size, in bits.
     WCHAR RegisterNum[C_MAX_ATTR_LENGTH];               //  Number: The number is equal to the element index for a register vector
     WCHAR RegisterSaveRestore[C_MAX_ATTR_LENGTH];       //  SaveRestore:Whether the register should be preserved across inferior function calls; 
                                                         //              this must be either yes or no.  default is yes, which is appropriate for most 
                                                         //              registers except for some system control registers; 
     WCHAR RegisterType[C_MAX_ATTR_LENGTH];              //  Type: The type of the register.It may be a predefined type, a type defined in the current feature, or 
                                                         //        one of the special types intand float. int is an integer type of the correct size for bitsize, 
-                                                        //        and float is a floating point type(in the architecture’s normal floating point format) of the 
+                                                        //        and float is a floating point type(in the architectureæŠ¯ normal floating point format) of the 
                                                         //        correct size for bitsize.The default is int.
     WCHAR RegisterGroup[C_MAX_ATTR_LENGTH];             //  Group: The register group to which this register belongs.It can be one of the standard register groups general, float, 
                                                         //         vector or an arbitrary string.Group names should be limited to alphanumeric characters.
@@ -826,7 +826,7 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                     pConfigTable->target.fEnabledIntelFpSseContext = (_wcsicmp(targetData.fEnabledIntelFpSseContext, L"yes") == 0) ? true : false;
                     if (swscanf_s(targetData.heuristicChunkSize, L"%I64x", &pConfigTable->target.heuristicChunkSize) != 1)
                     {
-                        throw _com_error(E_INVALIDARG);
+                        throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                     }
                     pConfigTable->target.targetDescriptionFileName = targetData.targetDescriptionFileName;
                     isSet = true;
@@ -889,7 +889,7 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                         pConfigTable->gdbServerRegisters.featureNameSupported.reset(new(std::nothrow) GdbServerRegFeatureSupportedMap());
                         if (pConfigTable->gdbServerRegisters.featureNameSupported == nullptr)
                         {
-                            throw _com_error(E_OUTOFMEMORY);
+                            throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
                         }
 
                     }
@@ -902,7 +902,7 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                         pConfigTable->gdbServerRegisters.spRegisterCoreSet.reset(new(std::nothrow) GdbServerRegisterMap());
                         if (pConfigTable->gdbServerRegisters.spRegisterCoreSet == nullptr)
                         {
-                            throw _com_error(E_OUTOFMEMORY);
+                            throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
                         }
                     }
                     pConfigTable->gdbServerRegisters.spRegisterCoreSet->emplace(
@@ -920,7 +920,7 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                             pConfigTable->gdbServerRegisters.spRegisterSystemSet.reset(new(std::nothrow) GdbServerRegisterMap());
                             if (pConfigTable->gdbServerRegisters.spRegisterSystemSet == nullptr)
                             {
-                                throw _com_error(E_OUTOFMEMORY);
+                                throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
                             }
                             pConfigTable->gdbServerRegisters.spRegisterSystemSet->emplace(
                                 pConfigTable->gdbServerRegisters.registerSet.back(),
@@ -929,17 +929,19 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                             m_spSystemRegsRange.reset(new(std::nothrow) vector<size_t>());
                             if (m_spSystemRegsRange == nullptr)
                             {
-                                throw _com_error(E_OUTOFMEMORY);
+                                throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
                             }
                             size_t rangeStart;
                             if (swscanf_s(registerExdiGdbData.SystemRegistersStart, L"%zx", &rangeStart) != 1)
                             {
-                                throw _com_error(E_INVALIDARG);
+                                printf("Failed parsing the system register range start value\n");
+                                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                             }
                             size_t rangeEnd;
                             if (swscanf_s(registerExdiGdbData.SystemRegistersEnd, L"%zx", &rangeEnd) != 1)
                             {
-                                throw _com_error(E_INVALIDARG);
+                                printf("Failed parsing the system register range end value\n");
+                                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                             }
                             m_spSystemRegsRange->push_back(rangeStart);
                             m_spSystemRegsRange->push_back(rangeEnd);
@@ -959,14 +961,14 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                     if (WideCharToMultiByte(CP_ACP, 0, registerData.RegisterName, static_cast<int>(wcslen(registerData.RegisterName)),
                         nameBuf, sizeof(nameBuf), nullptr, nullptr) == 0)
                     {
-                        throw _com_error(E_INVALIDARG);
+                        throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                     }
 
                     char nameOrderBuf[128] = {};
                     if (WideCharToMultiByte(CP_ACP, 0, registerData.RegisterOrder, static_cast<int>(wcslen(registerData.RegisterOrder)),
                         nameOrderBuf, sizeof(nameOrderBuf), nullptr, nullptr) == 0)
                     {
-                        throw _com_error(E_INVALIDARG);
+                        throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                     }
 
                     RegistersStruct registerSet = {};
@@ -977,7 +979,7 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                     auto it = pConfigTable->gdbServerRegisters.spRegisterCoreSet->find(pConfigTable->gdbServerRegisters.registerSet.back());
                     if (it == pConfigTable->gdbServerRegisters.spRegisterCoreSet->end())
                     {
-                        throw _com_error(E_INVALIDARG);
+                        throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                     }
                     it->second->push_back(move(registerSet));
 
@@ -992,7 +994,7 @@ HRESULT XmlDataHelpers::HandleTagAttributeList(_In_ TAG_ATTR_LIST* const pTagAtt
                             size_t coreRegister;
                             if (swscanf_s(registerData.RegisterOrder, L"%zx", &coreRegister) != 1)
                             {
-                                throw _com_error(E_INVALIDARG);
+                                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
                             }
 
                             size_t rangeLow = (*m_spSystemRegsRange.get())[0];
@@ -1133,7 +1135,7 @@ bool XmlDataGdbServerRegisterFile::SetRegistersByTargetFile(_In_ TAG_ATTR_LIST* 
             auto it = pConfigTable->gdbServerRegisters.featureNameSupported->find(pConfigTable->file.registerGroupArchitecture);
             if (it == pConfigTable->gdbServerRegisters.featureNameSupported->end())
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             if ((it->second->compare(L"all") == 0) ||
@@ -1145,7 +1147,7 @@ bool XmlDataGdbServerRegisterFile::SetRegistersByTargetFile(_In_ TAG_ATTR_LIST* 
             pConfigTable->gdbServerRegisters.spRegisterSystemSet.reset(new(std::nothrow) GdbServerRegisterMap());
             if (pConfigTable->gdbServerRegisters.spRegisterSystemSet == nullptr)
             {
-                throw _com_error(E_OUTOFMEMORY);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
             }
             pConfigTable->gdbServerRegisters.spRegisterSystemSet->emplace(
                 pConfigTable->file.registerGroupArchitecture,
@@ -1165,7 +1167,7 @@ bool XmlDataGdbServerRegisterFile::SetRegistersByTargetFile(_In_ TAG_ATTR_LIST* 
             if (WideCharToMultiByte(CP_ACP, 0, registerFileData.RegisterName, static_cast<int>(wcslen(registerFileData.RegisterName)),
                 nameBuf, sizeof(nameBuf), nullptr, nullptr) == 0)
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             size_t registerSize = static_cast<size_t>(_wtoi(registerFileData.RegistBitSize));
@@ -1184,7 +1186,7 @@ bool XmlDataGdbServerRegisterFile::SetRegistersByTargetFile(_In_ TAG_ATTR_LIST* 
             if (WideCharToMultiByte(CP_ACP, 0, registerFileData.RegisterGroup, static_cast<int>(wcslen(registerFileData.RegisterGroup)),
                 groupBuf, sizeof(groupBuf), nullptr, nullptr) == 0)
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             RegistersStruct registerSet = {};
@@ -1195,7 +1197,7 @@ bool XmlDataGdbServerRegisterFile::SetRegistersByTargetFile(_In_ TAG_ATTR_LIST* 
             auto it = pConfigTable->gdbServerRegisters.spRegisterSystemSet->find(pConfigTable->file.registerGroupArchitecture);
             if (it == pConfigTable->gdbServerRegisters.spRegisterSystemSet->end())
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
             it->second->push_back(move(registerSet));
 
@@ -1242,7 +1244,7 @@ bool XmlDataGdbServerRegisterFile::HandleTargetFileTags(_In_ TAG_ATTR_LIST* cons
                 pConfigTable->file.registerGroupFiles.reset(new(std::nothrow) targetDescriptionFilesMap());
                 if (pConfigTable->file.registerGroupFiles == nullptr)
                 {
-                    throw _com_error(E_OUTOFMEMORY);
+                    throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
                 }
             }
 
@@ -1351,7 +1353,7 @@ bool XmlDataSystemRegister::HandleMapSystemRegAccessCode(_In_ TAG_ATTR_LIST* con
                 pConfigTable->systemRegisterMap.spSysRegisterMap.reset(new(std::nothrow) SystemRegCodeMap());
                 if (pConfigTable->systemRegisterMap.spSysRegisterMap == nullptr)
                 {
-                    throw _com_error(E_OUTOFMEMORY);
+                    throw _COM_ERROR_EXCEPTION_HELPER_(E_OUTOFMEMORY);
                 }
                 pConfigTable->systemRegisterMap.spSysRegisterMap->emplace(
                     pConfigTable->systemRegisterMap.systemRegArchitecture.back(),
@@ -1378,7 +1380,7 @@ bool XmlDataSystemRegister::HandleMapSystemRegAccessCode(_In_ TAG_ATTR_LIST* con
                 static_cast<int>(wcslen(systemRegMapData.RegisterName)),
                 nameBuf, sizeof(nameBuf), nullptr, nullptr) == 0)
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             std::vector<int> accessCodeVector;
@@ -1388,7 +1390,7 @@ bool XmlDataSystemRegister::HandleMapSystemRegAccessCode(_In_ TAG_ATTR_LIST* con
                 L",", &accessCodeVector);
             if (accessCodeVector.size() != c_numberOfAccessCodeFields)
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             //  Encode accesscode 
@@ -1401,7 +1403,7 @@ bool XmlDataSystemRegister::HandleMapSystemRegAccessCode(_In_ TAG_ATTR_LIST* con
                 accessCodeVector[4]);
             if (encodedValue == c_InvalidAddress)
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             //  Generate the map entry pair taking into account the Register order as well
@@ -1410,13 +1412,13 @@ bool XmlDataSystemRegister::HandleMapSystemRegAccessCode(_In_ TAG_ATTR_LIST* con
             auto itVector = pConfigTable->gdbServerRegisters.spRegisterSystemSet->find(pConfigTable->systemRegisterMap.systemRegArchitecture.back());
             if (itVector == pConfigTable->gdbServerRegisters.spRegisterSystemSet->end())
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             auto itMap = pConfigTable->systemRegisterMap.spSysRegisterMap->find(pConfigTable->systemRegisterMap.systemRegArchitecture.back());
             if (itMap == pConfigTable->systemRegisterMap.spSysRegisterMap->end())
             {
-                throw _com_error(E_INVALIDARG);
+                throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
             }
 
             for (auto it = itVector->second->cbegin();

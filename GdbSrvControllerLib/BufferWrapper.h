@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 //  BufferWrapper.h
 //
@@ -79,9 +79,16 @@ namespace GdbSrvControllerLib
          {
              return m_capacity;
          }
-
+         bool IsEmpty() const 
+		 {
+			 return m_length == 0;
+		 }
          TElementType &operator[](_In_ size_t index) 
          {
+             if (index >=m_length)
+             { 
+                 printf("index: %d %d\n", index, m_length);
+             }
              assert(index < m_length);
              assert(m_pBuffer != nullptr);
              return m_pBuffer[index];

@@ -42,7 +42,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v142</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
@@ -279,6 +279,7 @@ midl /env x64 /out".\GeneratedSources" /h "ExdiGdbSrv.h" /W1 /I"..\ExdiGdbSrv"  
     <ClCompile Include="GdbSrvRspClient.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="TcpConnectorStream.cpp" />
+    <ClCompile Include="X86_64_SpecialRegister.cpp" />
     <ClCompile Include="XmlDataHelpers.cpp" />
   </ItemGroup>
   <ItemGroup>

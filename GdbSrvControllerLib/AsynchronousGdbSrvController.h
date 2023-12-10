@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // AsynchronousGdbSrvController.h
 //
@@ -76,8 +76,8 @@ namespace GdbSrvControllerLib
         static DWORD CALLBACK AsynchronousCommandThreadBody(LPVOID p);
         int GetBreakPointSize();
 
-        std::vector<bool> m_breakpointSlots;
-        std::vector<bool> m_dataBreakpointSlots;
+        std::map<uint64_t,bool> m_breakpointSlots;
+        std::map<uint64_t, bool> m_dataBreakpointSlots;
         bool m_isAsynchronousCmdStopReplyPacket;
     };
 }

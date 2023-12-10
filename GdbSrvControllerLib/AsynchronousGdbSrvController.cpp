@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 //  AsynchronousGdbSrvController.cpp
 //  This modules handles the asynchronous commands continue:'g',steps ('p'/'t')
@@ -99,7 +99,7 @@ const char * GetDataAccessBreakPointCommand(_In_ DATA_ACCESS_TYPE dataAccessType
     }
     else
     {
-        throw _com_error(ERROR_INVALID_PARAMETER);
+        throw _COM_ERROR_EXCEPTION_HELPER_(ERROR_INVALID_PARAMETER);
     }
 
     return pCommandType;
@@ -109,12 +109,13 @@ AsynchronousGdbSrvController * AsynchronousGdbSrvController::Create(_In_ const s
 {
     if (coreConnectionParameters.empty())
     {
-        throw _com_error(E_INVALIDARG);
+        printf("AsynchronousGdbSrvController::Create: Invalid parameter\n");
+        throw _COM_ERROR_EXCEPTION_HELPER_(E_INVALIDARG);
     }
     AsynchronousGdbSrvController * pResult = new AsynchronousGdbSrvController(coreConnectionParameters);
     if (pResult == nullptr)
     {
-        throw _com_error(ERROR_NOT_ENOUGH_MEMORY);
+        throw _COM_ERROR_EXCEPTION_HELPER_(ERROR_NOT_ENOUGH_MEMORY);
     }
     ConfigExdiGdbServerHelper& cfgData = ConfigExdiGdbServerHelper::GetInstanceCfgExdiGdbServer(nullptr);
     if (cfgData.IsForcedLegacyResumeStepMode())
@@ -181,8 +182,9 @@ AsynchronousGdbSrvController::~AsynchronousGdbSrvController()
 //
 unsigned AsynchronousGdbSrvController::CreateCodeBreakpoint(_In_ AddressType address)
 {
-    unsigned slot = static_cast<unsigned>(-1);
-    for(unsigned i = 0; i < m_breakpointSlots.size(); ++i)
+   unsigned slot = static_cast<unsigned>(-1);
+
+   /*  for(unsigned i = 0; i < m_breakpointSlots.size(); ++i)
     {
         if (!m_breakpointSlots[i])
         {
@@ -195,7 +197,12 @@ unsigned AsynchronousGdbSrvController::CreateCodeBreakpoint(_In_ AddressType add
     {
         slot = static_cast<unsigned>(m_breakpointSlots.size());
         m_breakpointSlots.push_back(false);
-    }
+    }*/  
+
+   if (m_breakpointSlots.count(address))
+   {
+       return m_breakpointSlots[address];
+   }
 
     ConfigExdiGdbServerHelper& cfgData = ConfigExdiGdbServerHelper::GetInstanceCfgExdiGdbServer(nullptr);
     PCSTR pBpCommand = (cfgData.GetTreatSwBpAsHwBp()) ? "Z1" : "Z0";
@@ -218,9 +225,15 @@ unsigned AsynchronousGdbSrvController::CreateCodeBreakpoint(_In_ AddressType add
             replyType = GetRspResponse(reply);
             if (replyType == RSP_OK)
             {
-                m_breakpointSlots[slot] = true;
+                m_breakpointSlots[address] = true;
                 isReplyOK = true;
                 break;
+            }
+            else
+            {
+				printf("CreateCodeBreakpoint::replyType:%d %s\n", replyType, reply.c_str());
+                assert(0);
+
             }
         }
         while (IS_BAD_REPLY(replyType) && IS_RETRY_ALLOWED(++retryCounter));
@@ -228,10 +241,11 @@ unsigned AsynchronousGdbSrvController::CreateCodeBreakpoint(_In_ AddressType add
     }
     if (!isReplyOK)
     {
+        assert(0);
         std::exception("Setting a Code breakpoint failed");
     }
 
-    return slot;
+    return m_breakpointSlots.size();
 }
 
 //
@@ -258,10 +272,13 @@ unsigned AsynchronousGdbSrvController::CreateCodeBreakpoint(_In_ AddressType add
 //
 void AsynchronousGdbSrvController::DeleteCodeBreakpoint(_In_ unsigned breakpointNumber, _In_ AddressType address)
 {
-    if (breakpointNumber >= m_breakpointSlots.size() || !m_breakpointSlots[breakpointNumber])
-    {
-        throw std::exception("Trying to delete nonexisting breakpoint");
-    }
+    //if (breakpointNumber >= m_breakpointSlots.size() || !m_breakpointSlots[breakpointNumber])
+	if (!m_breakpointSlots.count(address))
+	{
+		printf("%d %d\n", breakpointNumber >= m_breakpointSlots.size(), !m_breakpointSlots[breakpointNumber]);
+		printf("breakpointNumber:%d m_breakpointSlots.size():%p m_breakpointSlots[breakpointNumber]:%x address:%p\n", breakpointNumber, m_breakpointSlots.size(), m_breakpointSlots[breakpointNumber], address);
+		throw std::exception("264 Trying to delete nonexisting breakpoint");
+	}
 
     ConfigExdiGdbServerHelper& cfgData = ConfigExdiGdbServerHelper::GetInstanceCfgExdiGdbServer(nullptr);
     PCSTR pBpCommand = (cfgData.GetTreatSwBpAsHwBp()) ? "z1" : "z0";
@@ -283,7 +300,7 @@ void AsynchronousGdbSrvController::DeleteCodeBreakpoint(_In_ unsigned breakpoint
             replyType = GetRspResponse(reply);
             if (replyType == RSP_OK)
             {
-                m_breakpointSlots[breakpointNumber] = false;
+                m_breakpointSlots[address] = false;
                 isReplyOK = true;
                 break;
             }
@@ -292,7 +309,7 @@ void AsynchronousGdbSrvController::DeleteCodeBreakpoint(_In_ unsigned breakpoint
     }
     if (!isReplyOK)
     {
-        std::exception("Deleting a Code breakpoint failed");
+        std::exception("296 Deleting a Code breakpoint failed");
     }
 }
 
@@ -332,7 +349,7 @@ unsigned AsynchronousGdbSrvController::CreateDataBreakpoint(_In_ AddressType add
                                                             _In_ DATA_ACCESS_TYPE dataAccessType)
 {
     unsigned slot = static_cast<unsigned>(-1);
-    for(unsigned i = 0; i < m_dataBreakpointSlots.size(); ++i)
+ /*   for(unsigned i = 0; i < m_dataBreakpointSlots.size(); ++i)
     {
         if (!m_dataBreakpointSlots[i])
         {
@@ -345,7 +362,7 @@ unsigned AsynchronousGdbSrvController::CreateDataBreakpoint(_In_ AddressType add
     {
         slot = static_cast<unsigned>(m_dataBreakpointSlots.size());
         m_dataBreakpointSlots.push_back(false);
-    }
+    } */
 
     TargetArchitecture targetArchitecture = GdbSrvController::GetTargetArchitecture();
     if (dataAccessType == daRead && targetArchitecture == AMD64_ARCH)
@@ -374,7 +391,7 @@ unsigned AsynchronousGdbSrvController::CreateDataBreakpoint(_In_ AddressType add
             replyType = GetRspResponse(reply);
             if (replyType == RSP_OK)
             {
-                m_dataBreakpointSlots[slot] = true;
+                m_dataBreakpointSlots[address] = true;
                 isReplyOK = true;
                 break;
             }
@@ -386,7 +403,7 @@ unsigned AsynchronousGdbSrvController::CreateDataBreakpoint(_In_ AddressType add
         std::exception("Setting a Data breakpoint failed");
     }
 
-    return slot;
+    return m_dataBreakpointSlots.size();
 }
 
 //
@@ -414,7 +431,8 @@ unsigned AsynchronousGdbSrvController::CreateDataBreakpoint(_In_ AddressType add
 void AsynchronousGdbSrvController::DeleteDataBreakpoint(_In_ unsigned breakpointNumber, _In_ AddressType address,
                                                         _In_ BYTE accessWidth, _In_ DATA_ACCESS_TYPE dataAccessType)
 {
-    if (breakpointNumber >= m_dataBreakpointSlots.size() || !m_dataBreakpointSlots[breakpointNumber])
+    //if (breakpointNumber >= m_dataBreakpointSlots.size() || !m_dataBreakpointSlots[breakpointNumber])
+    if (!m_dataBreakpointSlots.count(address))
     {
         throw std::exception("Trying to delete nonexisting data breakpoint");
     }
@@ -557,11 +575,12 @@ DWORD AsynchronousGdbSrvController::AsynchronousCommandThreadBody(LPVOID p)
     startAsynchronousCommandStruct * pCmdStruct = reinterpret_cast<startAsynchronousCommandStruct *>(p);
     assert(pCmdStruct->pController != nullptr);
 
+   
     try
     {
-        ConfigExdiGdbServerHelper & cfgData = ConfigExdiGdbServerHelper::GetInstanceCfgExdiGdbServer(nullptr);
-        if (cfgData.GetMultiCoreGdbServer())
-        {
+		ConfigExdiGdbServerHelper& cfgData = ConfigExdiGdbServerHelper::GetInstanceCfgExdiGdbServer(nullptr);
+		if (cfgData.GetMultiCoreGdbServer())
+        {   printf("1AsynchronousCommandThreadBody::isReqNeeded:%x isRspNeeded:%x %s\n", pCmdStruct->isReqNeeded, pCmdStruct->isRspNeeded, pCmdStruct->pController->m_currentAsynchronousCommand.c_str());
             //  We are in the multi_Core GdbServer, but we let go all cores when we do step/continue commands then
             //  we accept the first core response as the response with the program counter value to continue.
             //  We discard all other core responses.
@@ -570,7 +589,8 @@ DWORD AsynchronousGdbSrvController::AsynchronousCommandThreadBody(LPVOID p)
                                                                                        pCmdStruct->isRspNeeded, 0); 
         }
         else
-        {
+		{
+			printf("2AsynchronousCommandThreadBody::isReqNeeded:%x isRspNeeded:%x %s\n", pCmdStruct->isReqNeeded, pCmdStruct->isRspNeeded, pCmdStruct->pController->m_currentAsynchronousCommand.c_str());
             if (pCmdStruct->isReqNeeded)
             {
                 pCmdStruct->pController->m_currentAsynchronousCommandResult = 
@@ -579,9 +599,11 @@ DWORD AsynchronousGdbSrvController::AsynchronousCommandThreadBody(LPVOID p)
             }
             else
             {
-                pCmdStruct->pController->m_currentAsynchronousCommandResult = 
+                printf("CommandResult:%s\n", pCmdStruct->pController->m_currentAsynchronousCommandResult.c_str());
+                assert(0);
+              /*  pCmdStruct->pController->m_currentAsynchronousCommandResult = 
                 pCmdStruct->pController->GdbSrvController::GetResponseOnProcessor(0, 
-                    pCmdStruct->pController->GdbSrvController::GetLastKnownActiveCpu());
+                    pCmdStruct->pController->GdbSrvController::GetLastKnownActiveCpu());*/
             }
         }
         return 0;
@@ -780,6 +802,8 @@ bool AsynchronousGdbSrvController::IsLastCommandTargetRun()
 
 void AsynchronousGdbSrvController::StopTargetAtRun()
 {
+    printf("AsynchronousGdbSrvController::StopTargetAtRun\n");
+ 
     if (IsAsynchronousCommandInProgress() &&
         IsLastCommandTargetRun() &&
         m_AsynchronousCmd.isRspNeeded == false)
@@ -788,11 +812,13 @@ void AsynchronousGdbSrvController::StopTargetAtRun()
         //  a command w/o interruption, then force to interrup the waiting state
         //  of the GDB client link layer.
         //  Set the interrupt event to let the previous resume command to finish.
+        printf("AsynchronousGdbSrvController::StopTargetAtRun: SetInterruptEvent\n");
         SetInterruptEvent();
 
         //  Ensure that the waiting thread to finish itself once the interrup event is emitted.
         WaitForSingleObject(m_asynchronousCommandThread, INFINITE);
     }
+
 }
 
 void AsynchronousGdbSrvController::SetInterruptEvent()

@@ -1,4 +1,4 @@
-//----------------------------------------------------------------------------
+﻿//----------------------------------------------------------------------------
 //
 // GdbSrvRspClient.h
 //
@@ -128,15 +128,20 @@ namespace GdbSrvControllerLib
         bool SendRspPacket(_In_ const string & command, _In_ unsigned activeCore);
 
         //  Receives a RSP packet from the GdbServer
-         bool ReceiveRspPacket(_Out_ string & response, _In_ unsigned activeCore, _In_ bool isWaitForever)
+        /* bool ReceiveRspPacket(_Out_ string & response, _In_ unsigned activeCore, _In_ bool isWaitForever)
          {
             bool IsPollingChannelMode = false;
             return ReceiveRspPacketEx(response, activeCore, isWaitForever, IsPollingChannelMode, true);
-         }
+         }*/
 
-        bool ReceiveRspPacketEx(_Out_ string & response, _In_ unsigned activeCore, _In_ bool isWaitForever, 
+          bool ReceiveRspPacketEx(_Out_ string & response, _In_ unsigned activeCore, _In_ bool isWaitForever, 
                                 _Inout_ bool & IsPollingChannelMode, _In_ bool fReset);
+          int SendPacket(unsigned activeCore, LPCSTR pBuffer, int length, string& response, bool isRspWaitNeeded);
 
+
+        bool SendRspPacketEx(const string& command, unsigned activeCore, string& response, bool isRspWaitNeeded, bool& IsPollingChannelMode, bool fResetBuffer);
+
+ 
         //  Send an interrupt message (CTRL-C)
         bool SendRspInterrupt()
         {
