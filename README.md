@@ -15,6 +15,10 @@
 ##### windbg.exe -v -kx exdi:CLSID={29f9906e-9dbe-4d4b-b0fb-6acf7fb6d014},Kd=NTBaseAddr,DataBreaks=Exdi
 ##### 记住, Kd=NTBaseAddr 是必须的, 不然windbg将使用它那极其愚蠢的搜索方式找了半天也找不到Ntoskrnl基址
 ##### 要注意的是, 尽量使用传统稳定版本的windbg, 愚蠢的船新版本windbg仍然有很多莫名奇妙的BUG, 这会令人抓狂
-## 下一步预计修复的功能?
-##### 我自己用着不舒服了再修
+## 最新版本windbg view使用方法
+#### Start-ExdiDebugger.ps1 systemregisters.xml exdiConfigData.xml ExdiGdbSrv.dll edxi-debugger-init.bat 五个文件放到 C:\Program Files (x86)\Windows Kits\10\Debuggers\x64
+#### 管理员权限运行edxi-debugger-init.bat进行注册ExdiGdbSrv.dll
+#### Start-ExdiDebugger.ps1 里的qemu改成 VMWare,309行改成$DebuggerArgs = @("-v", "-kx exdi:CLSID={29f9906e-9dbe-4d4b-b0fb-6acf7fb6d014},Kd=NTBaseAddr,DataBreaks=Exdi")
+#### 当前文件夹下 windows poweshell 管理员权限运行 .\Start-ExdiDebugger.ps1 -ExdiTarget "VMWare" -GdbPort 55555 -Architecture x64
+#####  .\Start-ExdiDebugger.ps1 -ExdiTarget "VMWare" -GdbPort 55555 -Architecture x64
 
