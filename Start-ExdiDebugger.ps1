@@ -55,7 +55,7 @@ param
     $ExdiTarget = "VMWare",
 
     [string]
-    $HostName = "192.168.50.117",
+    $HostName = "127.0.0.1",
 
     [Parameter(Mandatory=$true)]
     [Int]
